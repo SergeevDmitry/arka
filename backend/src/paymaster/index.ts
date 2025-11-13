@@ -203,6 +203,7 @@ export class Paymaster {
         returnValue = {
           paymaster: paymasterAddress,
           paymasterData: paymasterData,
+          paymasterAndData: this.packPaymasterData(paymasterAddress, this.EP7_PVGL, paymasterPostOpGasLimit, paymasterData),
           preVerificationGas: toHex(BigInt(packedUserOp.preVerificationGas)),
           verificationGasLimit: toHex(BigInt(userOp.verificationGasLimit)),
           callGasLimit: toHex(BigInt(userOp.callGasLimit)),
@@ -213,6 +214,7 @@ export class Paymaster {
         returnValue = {
           paymaster: paymasterAddress,
           paymasterData: paymasterData,
+          paymasterAndData: this.packPaymasterData(paymasterAddress, this.EP7_PVGL, paymasterPostOpGasLimit, paymasterData),
         }
       }
 

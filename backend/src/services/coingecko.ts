@@ -11,12 +11,15 @@ export class CoingeckoService {
   constructor(
     // private log: FastifyBaseLogger
   ) {
-    if (apiUrl === "" || apiKey === "")
-      throw new Error("Coingecko Config not provided properly")
+    // if (apiUrl === "" || apiKey === "")
+    //   throw new Error("Coingecko Config not provided properly")
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async fetchPriceByCoinID(tokens: string[], log?: FastifyBaseLogger): Promise<any> {
+    if (!apiKey || !apiKey) {
+      return []
+    }
     try {
       let price = [];
       const url = `${apiUrl}/simple/price?ids=${tokens.join(',')}&vs_currencies=usd`;
