@@ -178,6 +178,7 @@ export class Paymaster {
           signature: userOp.signature
         }
         userOp.paymasterData = await this.getPaymasterData(packedUserOp, validUntil, validAfter, paymasterContract, signer);
+        userOp.paymasterAndData = this.packPaymasterData(paymasterAddress, this.EP7_PVGL, paymasterPostOpGasLimit, userOp.paymasterData);
         const response = await publicClient.request({ method: 'eth_estimateUserOperationGas', params: [userOp, entryPoint] } as any) as any;
         userOp.verificationGasLimit = response.verificationGasLimit;
         userOp.callGasLimit = response.callGasLimit;
