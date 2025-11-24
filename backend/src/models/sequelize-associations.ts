@@ -1,4 +1,5 @@
 import { APIKey } from './api-key';
+import { User } from './user';
 import { SponsorshipPolicy } from './sponsorship-policy';
 
 export function setupAssociations() {
@@ -13,6 +14,9 @@ export function setupAssociations() {
     //     sourceKey: 'walletAddress',
     //     as: 'sponsorshipPolicies'
     // });
+
+    User.hasMany(APIKey, { foreignKey: 'userId', sourceKey: 'id' })
+    APIKey.belongsTo(User, { targetKey: 'id' })
 
     APIKey.hasMany(SponsorshipPolicy, { foreignKey: 'walletAddress', sourceKey: 'walletAddress' });
     SponsorshipPolicy.belongsTo(APIKey, { foreignKey: 'walletAddress', targetKey: 'walletAddress' });

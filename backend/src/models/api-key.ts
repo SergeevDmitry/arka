@@ -20,6 +20,7 @@ export class APIKey extends Model {
   public noOfTransactionsInAMonth?: number | null;
   public indexerEndpoint?: string | null;
   public contractWhitelistMode?: boolean | null;
+  public userId!: string
   public createdAt!: Date;
   public updatedAt!: Date;
 }
@@ -123,6 +124,17 @@ export function initializeAPIKeyModel(sequelize: Sequelize, schema: string) {
       type: DataTypes.BOOLEAN,
       allowNull: true,
       field: 'CONTRACT_WHITELIST_MODE'
+    },
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: 'USER_ID',
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
     },
     createdAt: {
       type: DataTypes.DATE,

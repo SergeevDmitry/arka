@@ -25,22 +25,9 @@ import { IncomingHttpHeaders } from "http";
 import { EPVersions } from "../types/sponsorship-policy-dto.js";
 import { getNetworkConfig, getViemChainDef } from "../utils/common.js";
 import { Paymaster } from "../paymaster/index.js";
+import { PaymasterRoutesOpts } from "../types/arka-config-dto.js";
 
-const adminRoutes: FastifyPluginAsync = async (server) => {
-  const paymaster = new Paymaster({
-    feeMarkUp: server.config.FEE_MARKUP, 
-    multiTokenMarkUp: server.config.MULTI_TOKEN_MARKUP, 
-    ep7TokenVGL: server.config.EP7_TOKEN_VGL, 
-    ep7TokenPGL: server.config.EP7_TOKEN_PGL, 
-    sequelize: server.sequelize, 
-    mtpVglMarkup: server.config.MTP_VGL_MARKUP, 
-    ep7Pvgl: server.config.EP7_PVGL, 
-    mtpPvgl: server.config.MTP_PVGL, 
-    mtpPpgl: server.config.MTP_PPGL, 
-    ep8Pvgl: server.config.EP8_PVGL,
-    skipType2Txns: server.config.ENFORCE_LEGACY_TRANSACTIONS_CHAINS
-  });
-
+const adminRoutes: FastifyPluginAsync<PaymasterRoutesOpts> = async (server, { paymaster }: PaymasterRoutesOpts) => {
   const prefixSecretId = 'arka_';
 
   let client: SecretsManagerClient;
@@ -57,10 +44,9 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
     EPV_08: server.config.EPV_08
   }
 
-
   server.post('/adminLogin', async function (request, reply) {
     try {
-      if(!server.config.UNSAFE_MODE) {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
         return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
       }
       const body: any = JSON.parse(request.body as string);
@@ -75,7 +61,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.get("/getConfig", async function (request, reply) {
     try {
-      if(!server.config.UNSAFE_MODE) {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
         return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
       }
       const result = await server.arkaConfigRepository.findFirstConfig();
@@ -93,7 +79,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post("/saveConfig", async function (request, reply) {
     try {
-      if(!server.config.UNSAFE_MODE) {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
         return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
       }
       const body: ArkaConfigUpdateData = JSON.parse(request.body as string);
@@ -102,7 +88,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
         try {
           const result = await server.arkaConfigRepository.updateConfig(body);
           server.log.info(`config entity after database update: ${JSON.stringify(result)}`);
-        } catch (error) {
+        } catch (error: any) {
           server.log.error('Error while updating the config:', error);
           throw error;
         }
@@ -123,9 +109,12 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post('/saveKey', async function (request, reply) {
     try {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
+        return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
+      }
       const body = JSON.parse(request.body as string) as ApiKeyDto;
       if (!body) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.MISSING_PARAMS });
-      if (!body.apiKey)
+      if (!body.apiKey || !body.userId)
         return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_DATA });
 
       // if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*-_&])[A-Za-z\d@$!%*-_&]{8,}$/.test(body.apiKey))
@@ -180,6 +169,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
           noOfTransactionsInAMonth: body.noOfTransactionsInAMonth ?? 10,
           indexerEndpoint: body.indexerEndpoint ?? process.env.DEFAULT_INDEXER_ENDPOINT ?? null,
           bundlerApiKey: body.bundlerApiKey ?? null,
+          userId: body.userId,
         });
       } else {
         const result = await server.apiKeyRepository.findOneByApiKey(body.apiKey);
@@ -202,6 +192,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
           noOfTransactionsInAMonth: body.noOfTransactionsInAMonth ?? 10,
           indexerEndpoint: body.indexerEndpoint ?? process.env.DEFAULT_INDEXER_ENDPOINT ?? null,
           bundlerApiKey: body.bundlerApiKey ?? null,
+          userId: body.userId,
         });
       }
 
@@ -214,7 +205,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post('/updateKey', async function (request, reply) {
     try {
-      if(!server.config.UNSAFE_MODE) {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
         return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
       }
       const body = JSON.parse(request.body as string) as ApiKeyDto;
@@ -246,7 +237,7 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.get('/getKeys', async function (request, reply) {
     try {
-      if(!server.config.UNSAFE_MODE) {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
         return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
       }
       if (!server.sequelize) throw new Error('Sequelize instance is not available');
@@ -264,6 +255,10 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post('/deleteKey', async function (request, reply) {
     try {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
+        return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
+      }
+
       const body: any = JSON.parse(request.body as string);
       if (!body)
         return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.MISSING_PARAMS });
@@ -377,6 +372,10 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post('/getSupportedNetworks', async (request, reply) => {
     try {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
+        return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
+      }
+
       const body: any = JSON.parse(request.body as string);
       if (!body) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.MISSING_PARAMS });
       if (!body.walletAddress) {
@@ -403,6 +402,10 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post('/deployVerifyingPaymaster', async (request, reply) => {
     try {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
+        return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
+      }
+
       if (!request.body) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.MISSING_PARAMS });
 
       const body: any = request.body;
@@ -507,6 +510,10 @@ const adminRoutes: FastifyPluginAsync = async (server) => {
 
   server.post('/addStake', async (request, reply) => {
     try {
+      if(!server.config.ADMIN_ROUTES_ENABLED) {
+        return reply.code(ReturnCode.NOT_AUTHORIZED).send({ error: ErrorMessage.NOT_AUTHORIZED });
+      }
+      
       if (!request.body) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.MISSING_PARAMS });
 
       const body: any = request.body;

@@ -15,7 +15,6 @@ import {abi as verifyingPaymasterV2Abi} from "../abi/VerifyingPaymasterAbiV2.js"
 import {abi as verifyingPaymastersV3Abi} from "../abi/VerifyingPaymasterAbiV3.js";
 
 const metadataRoutes: FastifyPluginAsync = async (server) => {
-
   const prefixSecretId = 'arka_';
 
   const SUPPORTED_ENTRYPOINTS = {
@@ -32,7 +31,7 @@ const metadataRoutes: FastifyPluginAsync = async (server) => {
     client = new SecretsManagerClient();
   }
 
-  server.get('/metadata', async function (request, reply) {
+  server.get('/metadata', { onRequest: [server.authenticate] }, async function (request, reply) {
     try {
       printRequest('/metadata', request, server.log);
       const query: any = request.query;
@@ -46,7 +45,7 @@ const metadataRoutes: FastifyPluginAsync = async (server) => {
       let privateKey = '';
       let sponsorName = '', sponsorImage = '';
       let bundlerApiKey = api_key;
-      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
       if (!apiKeyEntity) {
         server.log.info("Invalid Api Key provided")
         return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
@@ -137,7 +136,7 @@ const metadataRoutes: FastifyPluginAsync = async (server) => {
     }
   })
 
-  server.get('/metadata/v2', async function (request, reply) {
+  server.get('/metadata/v2', { onRequest: [server.authenticate] }, async function (request, reply) {
     try {
       printRequest('/metadata/v2', request, server.log);
       const query: any = request.query;
@@ -151,7 +150,7 @@ const metadataRoutes: FastifyPluginAsync = async (server) => {
       let privateKey = '';
       let sponsorName = '', sponsorImage = '';
       let bundlerApiKey = api_key;
-      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
       if (!apiKeyEntity) {
         server.log.info("Invalid Api Key provided")
         return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
@@ -240,7 +239,7 @@ const metadataRoutes: FastifyPluginAsync = async (server) => {
     }
   })
 
-  server.get('/metadata/v3', async function (request, reply) {
+  server.get('/metadata/v3', { onRequest: [server.authenticate] }, async function (request, reply) {
     try {
       printRequest('/metadata/v3', request, server.log);
       const query: any = request.query;
@@ -254,7 +253,7 @@ const metadataRoutes: FastifyPluginAsync = async (server) => {
       let privateKey = '';
       let sponsorName = '', sponsorImage = '';
       let bundlerApiKey = api_key;
-      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
       if (!apiKeyEntity) {
         server.log.info("Invalid Api Key provided")
         return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })

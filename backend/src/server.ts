@@ -16,6 +16,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import fetch from 'node-fetch';
 import sequelizePlugin from './plugins/sequelizePlugin.js';
+import jwtPlugin from 'plugins/jwtPlugin';
 import config from './plugins/config.js';
 import EtherspotChainlinkOracleAbi from './abi/EtherspotChainlinkOracleAbi.js';
 import ERC20PaymasterAbi from './abi/ERC20PaymasterAbi.js';
@@ -24,7 +25,9 @@ import { getNetworkConfig, getViemChainDef } from './utils/common.js';
 import { checkDeposit } from './utils/monitorTokenPaymaster.js';
 import { APIKeyRepository } from './repository/api-key-repository.js';
 import { ArkaConfigRepository } from './repository/arka-config-repository.js';
+import authRoutes from './routes/auth-routes.js'
 import adminRoutes from './routes/admin-routes.js';
+import apiKeyRoutes from './routes/api-key-routes.js'
 import depositRoutes from './routes/deposit-route.js';
 import metadataRoutes from './routes/metadata-routes.js';
 import paymasterRoutes from './routes/paymaster-routes.js';
@@ -38,13 +41,13 @@ import { Paymaster } from './paymaster/index.js';
 import { NativeOracles } from './constants/ChainlinkOracles.js';
 import { MultiTokenPaymaster } from './models/multiTokenPaymaster.js';
 import { MULTI_TOKEN_ORACLES, MULTI_TOKEN_PAYMASTERS } from './constants/MultiTokenPaymasterCronJob.js';
+import { PaymasterRoutesOpts } from "./types/arka-config-dto.js";
 
 let server: FastifyInstance;
 const defaultThrustholdValue = '0.001'; // in ETH
 const defaultTokenOracleDecimals = 8; // Standard oracle decimal
 
 const initializeServer = async (): Promise<void> => {
-
   server = fastify({
     ajv: {
       customOptions: {
@@ -73,6 +76,7 @@ const initializeServer = async (): Promise<void> => {
 
   // Register the sequelizePlugin
   await server.register(sequelizePlugin);
+  await server.register(jwtPlugin)
   const paymaster = new Paymaster({
     feeMarkUp: server.config.FEE_MARKUP,
     multiTokenMarkUp: server.config.MULTI_TOKEN_MARKUP,
@@ -94,7 +98,8 @@ const initializeServer = async (): Promise<void> => {
 
   await server.register(paymasterRoutes, { paymaster });
 
-  await server.register(adminRoutes);
+  await server.register(adminRoutes, { paymaster });
+  await server.register(authRoutes)
 
   await server.register(metadataRoutes);
 
@@ -123,15 +128,17 @@ const initializeServer = async (): Promise<void> => {
 
   try {
     await getAndSetCoingeckoPrice();
-  } catch (err) {
+  } catch (err: any) {
     server.log.error('Error caught on getAndSetCoingeckoPrice: ', err);
   }
 
-  await server.register(depositRoutes);
+  await server.register(depositRoutes, { paymaster });
+
+  await server.register<PaymasterRoutesOpts>(apiKeyRoutes, { prefix: '/apiKeys', paymaster })
 
   await server.register(tokenRoutes);
 
-  await server.register(whitelistRoutes);
+  await server.register(whitelistRoutes, { paymaster });
 
   await server.register(sponsorshipPolicyRoutes);
 

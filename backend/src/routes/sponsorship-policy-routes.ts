@@ -16,36 +16,40 @@ interface RouteParams {
 
 const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
 
-  // Get all policies
-  server.get("/policy", async (request, reply) => {
-    try {
-      const policies: SponsorshipPolicy[] = await server.sponsorshipPolicyRepository.findAll();
-      if (!policies.length) return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
+  // // Get all policies
+  // server.get("/policy", async (request, reply) => {
+  //   try {
+  //     const policies: SponsorshipPolicy[] = await server.sponsorshipPolicyRepository.findAll();
+  //     if (!policies.length) return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
 
-      // Sort policies by createdTime
-      policies.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  //     // Sort policies by createdTime
+  //     policies.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-      return reply.code(ReturnCode.SUCCESS).send(policies);
-    } catch (err: any) {
-      request.log.error(err);
-      return reply.code(ReturnCode.FAILURE).send({ error: err.message ?? ErrorMessage.FAILED_TO_QUERY_SPONSORSHIP_POLICY });
-    }
-  });
+  //     return reply.code(ReturnCode.SUCCESS).send(policies);
+  //   } catch (err: any) {
+  //     request.log.error(err);
+  //     return reply.code(ReturnCode.FAILURE).send({ error: err.message ?? ErrorMessage.FAILED_TO_QUERY_SPONSORSHIP_POLICY });
+  //   }
+  // });
 
   // get a Policy by id
-  server.get<{ Params: RouteParams }>("/policy/:id", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/:id", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const id = Number(request.params.id);
       if (isNaN(id)) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_SPONSORSHIP_POLICY_ID });
       }
 
-      const result = await server.sponsorshipPolicyRepository.findOneById(id);
-      if (!result) {
+      const policy = await server.sponsorshipPolicyRepository.findOneById(id);
+      if (!policy) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
+      }
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, policy.walletAddress)
+      if (!apiKeyInstance) {
         return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
-      return reply.code(ReturnCode.SUCCESS).send(result);
+      return reply.code(ReturnCode.SUCCESS).send(policy);
     } catch (err: any) {
       request.log.error(err);
       return reply.code(ReturnCode.FAILURE).send({ error: err.message ?? ErrorMessage.FAILED_TO_QUERY_SPONSORSHIP_POLICY });
@@ -53,12 +57,17 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // find all by walletAddress
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
 
       if (!walletAddress) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       const result = await server.sponsorshipPolicyRepository.findAllByWalletAddress(walletAddress);
@@ -74,13 +83,18 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // find all by walletAddress And EPVersion
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
       const epVersion = request.params.epVersion;
 
       if (!walletAddress || !epVersion) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       const result = await server.sponsorshipPolicyRepository.findAllByWalletAddressAndSupportedEPVersion(walletAddress, getEPVersion(epVersion));
@@ -96,7 +110,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // Get all policies for a given walletAddress, epVersion, and chainId
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion/chainId/:chainId", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion/chainId/:chainId", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
       const epVersion = request.params.epVersion;
@@ -104,6 +118,11 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
 
       if (!walletAddress || !epVersion || chainId === undefined || isNaN(chainId)) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       const result = await server.sponsorshipPolicyRepository.findAllByWalletAddressAndSupportedEPVersionAndChain(walletAddress, getEPVersion(epVersion), chainId);
@@ -119,12 +138,17 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // find latest by walletAddress
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/latest", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/latest", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
 
       if (!walletAddress) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       const result = await server.sponsorshipPolicyRepository.findOneByWalletAddress(walletAddress);
@@ -140,13 +164,18 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // find latest by walletAddress And chainId
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/chainId/:chainId/latest", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/chainId/:chainId/latest", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
       const chainId = request.params.chainId;
 
       if (!walletAddress || !chainId) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       const result = await server.sponsorshipPolicyRepository.findOneByWalletAddressAndChain(walletAddress, chainId);
@@ -162,13 +191,18 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // find latest By WalletAddress And EPVersion
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion/latest", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion/latest", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
       const epVersion = request.params.epVersion;
 
       if (!walletAddress || !epVersion) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       const result = await server.sponsorshipPolicyRepository.findOneByWalletAddressAndSupportedEPVersion(walletAddress, getEPVersion(epVersion));
@@ -184,7 +218,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // find latest policy for a given walletAddress, epVersion, and chainId
-  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion/chainId/:chainId/latest", async (request, reply) => {
+  server.get<{ Params: RouteParams }>("/policy/walletAddress/:walletAddress/epVersion/:epVersion/chainId/:chainId/latest", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const walletAddress = request.params.walletAddress;
       const epVersion = request.params.epVersion;
@@ -192,6 +226,11 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
 
       if (!walletAddress || !epVersion || chainId === undefined || isNaN(chainId)) {
         return reply.code(ReturnCode.BAD_REQUEST).send({ error: ErrorMessage.INVALID_DATA });
+      }
+
+      const apiKeyInstance = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, walletAddress)
+      if (!apiKeyInstance) {
+        return reply.code(ReturnCode.NOT_FOUND).send({ error: ErrorMessage.SPONSORSHIP_POLICY_NOT_FOUND });
       }
 
       // get sponsorshipPolicy for the user from walletAddress and entrypoint version
@@ -236,7 +275,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   }
 
   // create a new policy
-  server.post("/addPolicy", async function (request, reply) {
+  server.post("/addPolicy", { onRequest: [server.authenticate] }, async function (request, reply) {
     try {
       // parse the request body as JSON
       const sponsorshipPolicyDto: SponsorshipPolicyDto = JSON.parse(JSON.stringify(request.body)) as SponsorshipPolicyDto;
@@ -252,7 +291,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
       await validateRequestHeader(request, reply, server, sponsorshipPolicyDto.walletAddress);
 
       // verify if api key exists for the given wallet address
-      const apiKey = await server.apiKeyRepository.findOneByWalletAddress(sponsorshipPolicyDto.walletAddress);
+      const apiKey = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, sponsorshipPolicyDto.walletAddress);
 
       if (!apiKey) {
         return reply.code(ReturnCode.FAILURE).send({
@@ -304,7 +343,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   })
 
   // delete a policy
-  server.delete<{ Params: RouteParams }>("/deletePolicy/:id", async (request, reply) => {
+  server.delete<{ Params: RouteParams }>("/deletePolicy/:id", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const id = Number(request.params.id);
       if (isNaN(id)) {
@@ -318,7 +357,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
       }
 
       // get apiKey of the WalletAddress
-      const apiKey = await server.apiKeyRepository.findOneByWalletAddress(existingSponsorshipPolicy.walletAddress);
+      const apiKey = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, existingSponsorshipPolicy.walletAddress);
       if (!apiKey) {
         return reply.code(400).send({ error: ErrorMessage.API_KEY_DOES_NOT_EXIST_FOR_THE_WALLET_ADDRESS });
       }
@@ -341,7 +380,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   });
 
   // update a policy
-  server.put<{ Body: SponsorshipPolicyDto }>("/updatePolicy", async (request, reply) => {
+  server.put<{ Body: SponsorshipPolicyDto }>("/updatePolicy", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const sponsorshipPolicyDto: SponsorshipPolicyDto = JSON.parse(JSON.stringify(request.body)) as SponsorshipPolicyDto;
       const id = sponsorshipPolicyDto.id;
@@ -356,7 +395,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
       }
 
       // get apiKey of the WalletAddress
-      const apiKey = await server.apiKeyRepository.findOneByWalletAddress(existingSponsorshipPolicy.walletAddress);
+      const apiKey = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, existingSponsorshipPolicy.walletAddress);
       if (!apiKey) {
         return reply.code(400).send({ error: ErrorMessage.API_KEY_DOES_NOT_EXIST_FOR_THE_WALLET_ADDRESS });
       }
@@ -382,7 +421,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   });
 
   // enable policy
-  server.put<{ Params: RouteParams }>("/enablePolicy/:id", async (request, reply) => {
+  server.put<{ Params: RouteParams }>("/enablePolicy/:id", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const id = Number(request.params.id);
       if (isNaN(id)) {
@@ -396,7 +435,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
       }
 
       // get apiKey of the WalletAddress
-      const apiKey = await server.apiKeyRepository.findOneByWalletAddress(existingSponsorshipPolicy.walletAddress);
+      const apiKey = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, existingSponsorshipPolicy.walletAddress);
       if (!apiKey) {
         return reply.code(400).send({ error: ErrorMessage.API_KEY_DOES_NOT_EXIST_FOR_THE_WALLET_ADDRESS });
       }
@@ -419,7 +458,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
   });
 
   // disable policy
-  server.put<{ Params: RouteParams }>("/disablePolicy/:id", async (request, reply) => {
+  server.put<{ Params: RouteParams }>("/disablePolicy/:id", { onRequest: [server.authenticate] }, async (request, reply) => {
     try {
       const id = Number(request.params.id);
       if (isNaN(id)) {
@@ -432,7 +471,7 @@ const sponsorshipPolicyRoutes: FastifyPluginAsync = async (server) => {
       }
 
       // get apiKey of the WalletAddress
-      const apiKey = await server.apiKeyRepository.findOneByWalletAddress(existingSponsorshipPolicy.walletAddress);
+      const apiKey = await server.apiKeyRepository.findOneByUserIdAndWalletAddress(request.user.id, existingSponsorshipPolicy.walletAddress);
       if (!apiKey) {
         return reply.code(400).send({ error: ErrorMessage.API_KEY_DOES_NOT_EXIST_FOR_THE_WALLET_ADDRESS });
       }

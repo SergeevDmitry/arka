@@ -26,9 +26,8 @@ export class APIKeyRepository {
       noOfTransactionsInAMonth: apiKey.noOfTransactionsInAMonth,
       indexerEndpoint: apiKey.indexerEndpoint,
       bundlerApiKey: apiKey.bundlerApiKey,
+      userId: apiKey.userId,
     }) as APIKey;
-
-    
 
     return result;
   }
@@ -51,8 +50,23 @@ export class APIKeyRepository {
     return result.map(apiKey => apiKey.get() as APIKey);
   }
 
+  async findAllByUserId(userId: string) {
+    const result = await this.sequelize.models.APIKey.findAll({ where: { userId }});
+    return result.map(apiKey => apiKey.get() as APIKey);
+  }
+
+  async findOneByUserIdAndApiKey(userId: string, apiKey: string) {
+    const result = await this.sequelize.models.APIKey.findOne({ where: { userId, apiKey } });
+    return result ? result.get() as APIKey : null;
+  }
+
   async findOneByApiKey(apiKey: string): Promise<APIKey | null> {
     const result = await this.sequelize.models.APIKey.findOne({ where: { apiKey: apiKey } });
+    return result ? result.get() as APIKey : null;
+  }
+
+  async findOneByUserIdAndWalletAddress(userId: string, walletAddress: string): Promise<APIKey | null> {
+    const result = await this.sequelize.models.APIKey.findOne({ where: { userId, walletAddress } });
     return result ? result.get() as APIKey : null;
   }
 

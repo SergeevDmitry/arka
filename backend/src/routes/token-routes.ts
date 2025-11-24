@@ -11,10 +11,10 @@ const tokenRoutes: FastifyPluginAsync = async (server) => {
     const ResponseSchema = {
         schema: {
             response: {
-                200: Type.Object({
+                [ReturnCode.SUCCESS]: Type.Object({
                     message: Type.String(),
                 }),
-                400: Type.Object({
+                [ReturnCode.FAILURE]: Type.Object({
                     error: Type.String(),
                 }),
             }

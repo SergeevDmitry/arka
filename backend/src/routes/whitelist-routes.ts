@@ -12,22 +12,9 @@ import { printRequest, getNetworkConfig } from "../utils/common.js";
 import { APIKey } from "../models/api-key.js";
 import { ContractWhitelistDto } from "../types/contractWhitelist-dto.js";
 import { EPVersions } from "../types/sponsorship-policy-dto.js";
+import { PaymasterRoutesOpts } from "types/arka-config-dto.js";
 
-const whitelistRoutes: FastifyPluginAsync = async (server) => {
-  const paymaster = new Paymaster({
-    feeMarkUp: server.config.FEE_MARKUP, 
-    multiTokenMarkUp: server.config.MULTI_TOKEN_MARKUP, 
-    ep7TokenVGL: server.config.EP7_TOKEN_VGL, 
-    ep7TokenPGL: server.config.EP7_TOKEN_PGL, 
-    sequelize: server.sequelize, 
-    mtpVglMarkup: server.config.MTP_VGL_MARKUP, 
-    ep7Pvgl: server.config.EP7_PVGL, 
-    mtpPvgl: server.config.MTP_PVGL, 
-    mtpPpgl: server.config.MTP_PPGL, 
-    ep8Pvgl: server.config.EP8_PVGL,
-    skipType2Txns: server.config.ENFORCE_LEGACY_TRANSACTIONS_CHAINS
-  });
-
+const whitelistRoutes: FastifyPluginAsync<PaymasterRoutesOpts> = async (server, { paymaster }: PaymasterRoutesOpts) => {
   const SUPPORTED_ENTRYPOINTS = {
     EPV_06: server.config.EPV_06,
     EPV_07: server.config.EPV_07,
@@ -44,8 +31,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     client = new SecretsManagerClient();
   }
 
-  server.post("/whitelist",
-    async function (request, reply) {
+  server.post("/whitelist", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/whitelist", request, server.log);
         const body: any = request.body;
@@ -69,7 +55,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
         let bundlerApiKey = api_key;
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -152,8 +138,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/removeWhitelist",
-    async function (request, reply) {
+  server.post("/removeWhitelist", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/removeWhitelist", request, server.log);
         const body: any = request.body;
@@ -178,7 +163,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
         let bundlerApiKey = api_key;
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -267,8 +252,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/checkWhitelist",
-    async function (request, reply) {
+  server.post("/checkWhitelist", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/checkWhitelist", request, server.log);
         const body: any = request.body;
@@ -294,7 +278,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
         let bundlerApiKey = api_key;
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -359,8 +343,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/whitelist/v2",
-    async function (request, reply) {
+  server.post("/whitelist/v2", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/whitelist/v2", request, server.log);
         const body: any = request.body;
@@ -375,7 +358,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -451,8 +434,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/removeWhitelist/v2",
-    async function (request, reply) {
+  server.post("/removeWhitelist/v2", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/removeWhitelist/v2", request, server.log);
         const body: any = request.body;
@@ -468,7 +450,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -548,8 +530,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/checkWhitelist/v2",
-    async function (request, reply) {
+  server.post("/checkWhitelist/v2", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/checkWhitelist/v2", request, server.log);
         const body: any = request.body;
@@ -568,7 +549,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -618,8 +599,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/getAllWhitelist/v2",
-    async function (request, reply) {
+  server.post("/getAllWhitelist/v2", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/getAllWhitelist/v2", request, server.log);
         const body: any = request.body;
@@ -633,7 +613,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -683,8 +663,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   )
 
-  server.post("/whitelist/v3",
-    async function (request, reply) {
+  server.post("/whitelist/v3", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/whitelist/v3", request, server.log);
         const body: any = request.body;
@@ -699,7 +678,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -776,8 +755,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/removeWhitelist/v3",
-    async function (request, reply) {
+  server.post("/removeWhitelist/v3", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/removeWhitelist/v3", request, server.log);
         const body: any = request.body;
@@ -793,7 +771,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -873,8 +851,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/checkWhitelist/v3",
-    async function (request, reply) {
+  server.post("/checkWhitelist/v3", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/checkWhitelist/v3", request, server.log);
         const body: any = request.body;
@@ -893,7 +870,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -943,8 +920,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   );
 
-  server.post("/getAllWhitelist/v3",
-    async function (request, reply) {
+  server.post("/getAllWhitelist/v3", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/getAllWhitelist/v3", request, server.log);
         const body: any = request.body;
@@ -958,7 +934,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -1003,8 +979,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
       }
     }  )
 
-  server.post("/whitelistContractAddress",
-    async function (request, reply) {
+  server.post("/whitelistContractAddress", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/whitelistContractAddress", request, server.log);
         const contractWhitelistDto: ContractWhitelistDto = JSON.parse(JSON.stringify(request.body)) as ContractWhitelistDto;
@@ -1016,7 +991,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
         let bundlerApiKey = api_key;
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -1068,8 +1043,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   )
 
-  server.post("/updateWhitelistContractAddress",
-    async function (request, reply) {
+  server.post("/updateWhitelistContractAddress", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/updateWhitelistContractAddress", request, server.log);
         const contractWhitelistDto: ContractWhitelistDto = JSON.parse(JSON.stringify(request.body)) as ContractWhitelistDto;
@@ -1079,7 +1053,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(
@@ -1130,8 +1104,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
     }
   )
 
-  server.post("/deleteContractWhitelist",
-    async function (request, reply) {
+  server.post("/deleteContractWhitelist", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/deleteContractWhitelist", request, server.log);
         const contractWhitelistDto: ContractWhitelistDto = JSON.parse(JSON.stringify(request.body)) as ContractWhitelistDto;
@@ -1141,7 +1114,7 @@ const whitelistRoutes: FastifyPluginAsync = async (server) => {
         if (!api_key || typeof(api_key) !== "string")
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         let privateKey = '';
-        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+        const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
         if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
         if (!unsafeMode) {
           const AWSresponse = await client.send(

@@ -10,22 +10,10 @@ import { decode } from "../utils/crypto.js";
 import { printRequest, getNetworkConfig } from "../utils/common.js";
 import { APIKey } from "../models/api-key.js";
 import { EPVersions } from "../types/sponsorship-policy-dto.js";
+import { PaymasterRoutesOpts } from "types/arka-config-dto.js";
 
-const depositRoutes: FastifyPluginAsync = async (server) => {
-    const paymaster = new Paymaster({
-        feeMarkUp: server.config.FEE_MARKUP,
-        multiTokenMarkUp: server.config.MULTI_TOKEN_MARKUP,
-        ep7TokenVGL: server.config.EP7_TOKEN_VGL,
-        ep7TokenPGL: server.config.EP7_TOKEN_PGL,
-        sequelize: server.sequelize,
-        mtpVglMarkup: server.config.MTP_VGL_MARKUP,
-        ep7Pvgl: server.config.EP7_PVGL,
-        mtpPvgl: server.config.MTP_PVGL,
-        mtpPpgl: server.config.MTP_PPGL,
-        ep8Pvgl: server.config.EP8_PVGL,
-        skipType2Txns: server.config.ENFORCE_LEGACY_TRANSACTIONS_CHAINS
-    });
 
+const depositRoutes: FastifyPluginAsync<PaymasterRoutesOpts> = async (server, { paymaster }: PaymasterRoutesOpts) => {
     const SUPPORTED_ENTRYPOINTS = {
         EPV_06: server.config.EPV_06,
         EPV_07: server.config.EPV_07,
@@ -43,16 +31,17 @@ const depositRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const ResponseSchema = {
-        schema: {
-            response: {
-                200: Type.Object({
-                    message: Type.String(),
-                }),
-                400: Type.Object({
-                    error: Type.String(),
-                }),
-            }
+      onRequest: [server.authenticate],
+      schema: {
+        response: {
+          200: Type.Object({
+            message: Type.String(),
+          }),
+          400: Type.Object({
+            error: Type.String(),
+          }),
         }
+      }
     }
 
     async function deposit(request: FastifyRequest, reply: FastifyReply, epVersion: EPVersions) {
@@ -71,7 +60,7 @@ const depositRoutes: FastifyPluginAsync = async (server) => {
                 return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
             let privateKey = '';
             let bundlerApiKey = api_key;
-            const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByApiKey(api_key);
+            const apiKeyEntity = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
             if (!apiKeyEntity) return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
             if (!unsafeMode) {
                 const AWSresponse = await client.send(

@@ -13,4 +13,5 @@ export interface ApiKeyDto {
      transactionLimit: number | null;
      noOfTransactionsInAMonth: number | null;
      indexerEndpoint: string | null;
+     userId?: string
 }

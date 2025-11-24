@@ -1,4 +1,5 @@
 import crypto, { BinaryToTextEncoding } from 'crypto';
+import bcrypt from 'bcrypt'
 import { KmsKeyringNode, buildClient, CommitmentPolicy } from '@aws-crypto/client-node';
 
 function createDigest(encodedData: string, format: BinaryToTextEncoding, hmacSecret: string) {
@@ -73,4 +74,12 @@ export function verifySignature(signature: string, data: string, timestamp: stri
   }
   const computedSignature = createDigest(data + timestamp, 'hex', hmacSecret);
   return signature === computedSignature;
+}
+
+export function hashPassword(plainPassword: string) {
+  return bcrypt.hash(plainPassword, 10)
+}
+
+export function verifyPassword(plainPassword: string, hashedPassword: string) {
+  return bcrypt.compare(plainPassword, hashedPassword)
 }
