@@ -979,6 +979,32 @@ const whitelistRoutes: FastifyPluginAsync<PaymasterRoutesOpts> = async (server, 
       }
     }  )
 
+  server.get('/getWhitelistContractAddresses', { onRequest: [server.authenticate] }, async function (request, reply) {
+    try {
+      const query: any = request.query;
+
+      const chainId = query['chainId'];
+      const api_key = query['apiKey'];
+      if (!api_key || typeof(api_key) !== "string") {
+        return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
+      }
+      if (!chainId || isNaN(chainId)) {
+        return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_DATA });
+      }
+      const apiKeyEntity: APIKey | null = await server.apiKeyRepository.findOneByUserIdAndApiKey(request.user.id, api_key);
+      if (!apiKeyEntity) {
+        return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY })
+      }
+      const result = await server.contractWhitelistRepository.findAllByChainIdAndWalletAddress(chainId, apiKeyEntity.walletAddress)
+      return reply.code(ReturnCode.SUCCESS).send(result);
+    } catch (err: any) {
+      request.log.error(err);
+      if (err.name == "ResourceNotFoundException")
+        return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.INVALID_API_KEY });
+      return reply.code(ReturnCode.FAILURE).send({ error: err.message ?? ErrorMessage.FAILED_TO_CREATE_CONTRACT_WHITELIST });
+    }
+  })
+
   server.post("/whitelistContractAddress", { onRequest: [server.authenticate] }, async function (request, reply) {
       try {
         printRequest("/whitelistContractAddress", request, server.log);

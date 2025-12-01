@@ -43,6 +43,14 @@ export class ContractWhitelistRepository {
     return result.map(id => id.get() as ContractWhitelist);
   }
 
+  async findAllByChainIdAndWalletAddress(chainId: number, walletAddress: string) {
+    const result = await this.sequelize.models.ContractWhitelist.findAll({
+      where: { chainId, walletAddress },
+      order: [['createdAt', 'DESC']],
+    })
+    return result.map(id => id.get() as ContractWhitelist);
+  }
+
   async findOneByChainIdContractAddressAndWalletAddress(chainId: number, walletAddress: string, contractAddress: string): Promise<ContractWhitelist | null> {
     const result = await this.sequelize.models.ContractWhitelist.findOne({
       where: {
