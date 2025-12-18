@@ -32,6 +32,10 @@ export class APIKeyRepository {
     return result;
   }
 
+  async update(walletAddress: string, data: any) {
+    this.sequelize.models.APIKey.update(data, { where: { walletAddress } })
+  }
+
   async delete(apiKey: string): Promise<number> {
     const deletedCount = await this.sequelize.models.APIKey.destroy({
       where

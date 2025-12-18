@@ -146,7 +146,7 @@ const apiKeyRoutes: FastifyPluginAsync<PaymasterRoutesOpts> = async (server, { p
         if (!apiKeyInstance)
           return reply.code(ReturnCode.FAILURE).send({ error: ErrorMessage.RECORD_NOT_FOUND });
   
-        await apiKeyInstance.update({
+        await server.apiKeyRepository.update(apiKeyInstance.walletAddress, {
           supportedNetworks: body.supportedNetworks,
           erc20Paymasters: body.erc20Paymasters,
           transactionLimit: body.transactionLimit ?? 0,
